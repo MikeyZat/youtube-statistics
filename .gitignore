@@ -3,4 +3,4 @@ venv
 **/.idea/**/*
 src/OAuth_secret.json
 **/.ipynb_checkpoints/**/*
-**/__pycache__ /**/*
+**/__pycache__/**/*
