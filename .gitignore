@@ -1,0 +1,5 @@
+venv/*
+venv
+**/.idea/**/*
+src/OAuth_secret.json
+**/.ipynb_checkpoints/**/*
