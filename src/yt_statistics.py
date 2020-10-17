@@ -4,10 +4,13 @@ import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 import logging
+from collections import Counter
+import datetime
+import dateutil.relativedelta
 
 # set logging configuration here
 logging.basicConfig(
-    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG
+    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO
 )
 
 
@@ -28,15 +31,45 @@ def response_to_video_list(response):
     return list(map(shape_item, response['items']))
 
 
+def is_published_after(video, date):
+    try:
+        published_at = datetime.datetime.strptime(video.get('publishedAt'), '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        logging.error(f"Incorrect published_at format of video {video.get('title')}", exc_info=True)
+        return False
+    return published_at > date
+
+
+def last_month():
+    now = datetime.datetime.now()
+    month_delta = dateutil.relativedelta.relativedelta(months=-1)
+    return now + month_delta
+
+
+def return_histogram(func):
+    def wrapper(*args, **kwargs):
+        histogram = Counter(func(*args, **kwargs))
+        return histogram.most_common()
+    return wrapper
+
+
 class Statistics:
     youtube_client = None
     liked_songs = []
     all_categories_map = {}
+    categories_histogram = None
+    categories_histogram_last_month = None
+    favourite_channels = None
+    favourite_channels_last_month = None
 
     def __init__(self):
         self.youtube_client = self.get_youtube_client()
         self.liked_songs = self.get_all_liked_videos()
         self.all_categories_map = self.get_categories_map()
+        self.categories_histogram = self.get_categories_histogram()
+        self.categories_histogram_last_month = self.get_categories_histogram(last_month())
+        self.favourite_channels = self.get_favourite_channels()
+        self.favourite_channels_last_month = self.get_favourite_channels(last_month())
 
     def get_youtube_client(self):
         """ Log into Youtube """
@@ -87,7 +120,7 @@ class Statistics:
 
     def get_categories_map(self):
         """ Get all existing categories in format id -> category name """
-        categories_ids = set(map(lambda item: item.get('categoryId'), self.liked_songs))
+        categories_ids = set([item.get('categoryId') for item in self.liked_songs])
         request = self.youtube_client.videoCategories().list(
             part="snippet",
             id=','.join(id for id in categories_ids),
@@ -102,6 +135,26 @@ class Statistics:
                 logging.error("Incorrect category body", exc_info=True)
         return categories_map
 
+    @return_histogram
+    def get_categories_histogram(self, since=None):
+        return [
+            self.all_categories_map.get(song.get('categoryId')) for song in self.liked_songs
+            if since is None or is_published_after(song, since)
+        ]
+
+    @return_histogram
+    def get_favourite_channels(self, since=None):
+        return [
+            song.get('channelTitle') for song in self.liked_songs
+            if since is None or is_published_after(song, since)
+        ]
+
 
 if __name__ == '__main__':
     stats = Statistics()
+    print(stats.liked_songs)
+    print(stats.all_categories_map)
+    print(stats.categories_histogram)
+    print(stats.categories_histogram_last_month)
+    print(stats.favourite_channels)
+    print(stats.favourite_channels_last_month)
