@@ -55,7 +55,7 @@ def return_histogram(func):
 
 class Statistics:
     youtube_client = None
-    liked_songs = []
+    liked_videos = []
     all_categories_map = {}
     categories_histogram = None
     categories_histogram_last_month = None
@@ -64,7 +64,7 @@ class Statistics:
 
     def __init__(self):
         self.youtube_client = self.get_youtube_client()
-        self.liked_songs = self.get_all_liked_videos()
+        self.liked_videos = self.get_all_liked_videos()
         self.all_categories_map = self.get_categories_map()
         self.categories_histogram = self.get_categories_histogram()
         self.categories_histogram_last_month = self.get_categories_histogram(last_month())
@@ -120,7 +120,7 @@ class Statistics:
 
     def get_categories_map(self):
         """ Get all existing categories in format id -> category name """
-        categories_ids = set([item.get('categoryId') for item in self.liked_songs])
+        categories_ids = set([item.get('categoryId') for item in self.liked_videos])
         request = self.youtube_client.videoCategories().list(
             part="snippet",
             id=','.join(id for id in categories_ids),
@@ -138,21 +138,21 @@ class Statistics:
     @return_histogram
     def get_categories_histogram(self, since=None):
         return [
-            self.all_categories_map.get(song.get('categoryId')) for song in self.liked_songs
+            self.all_categories_map.get(song.get('categoryId')) for song in self.liked_videos
             if since is None or is_published_after(song, since)
         ]
 
     @return_histogram
     def get_favourite_channels(self, since=None):
         return [
-            song.get('channelTitle') for song in self.liked_songs
+            song.get('channelTitle') for song in self.liked_videos
             if since is None or is_published_after(song, since)
         ]
 
 
 if __name__ == '__main__':
     stats = Statistics()
-    print(stats.liked_songs)
+    print(stats.liked_videos)
     print(stats.all_categories_map)
     print(stats.categories_histogram)
     print(stats.categories_histogram_last_month)
